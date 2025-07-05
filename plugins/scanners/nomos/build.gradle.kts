@@ -22,7 +22,7 @@ plugins {
     id("ort-plugin-conventions")
     
     // Apply third-party plugins.
-    alias(libs.plugins.kotlinSerialization)
+    //alias(libs.plugins.kotlinSerialization)
 }
 
 dependencies {
@@ -30,4 +30,12 @@ dependencies {
     api(projects.scanner)
 
     implementation(projects.utils.commonUtils)
+
+    implementation(projects.utils.ortUtils)
+    implementation(projects.utils.spdxUtils)
+
+    ksp(projects.scanner)
+    
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0") // or similar latest
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
 }
