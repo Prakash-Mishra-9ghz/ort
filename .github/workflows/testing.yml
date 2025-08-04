@@ -1,0 +1,34 @@
+name: Build and Upload Docker Image
+
+on:
+  workflow_dispatch:   # manual trigger
+  push:
+    branches:
+      - main
+      - docker
+    tags:
+      - 'v*.*.*'       # or any tag pattern you want
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Remove dangling images only
+        run: docker image prune -f
+              
+      - name: Build Docker image
+        run: |
+          docker build -t ort-dev:local .
+
+      - name: Save Docker image as tarball
+        run: docker save ort-dev:local -o ort-dev-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ort-dev-image
+          path: ort-dev-image.tar

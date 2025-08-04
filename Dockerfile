@@ -512,6 +512,13 @@ COPY --from=ruby --chown=$USER:$USER $RBENV_ROOT $RBENV_ROOT
 
 COPY --from=scancode-license-data --chown=$USER:$USER /opt/scancode-license-data /opt/scancode-license-data
 
+# Nomos
+ARG NOMOS_VERSION=0.5.592
+RUN mkdir -p /opt/ort/bin && \
+    wget -q https://github.com/Prakash-Mishra-9ghz/fossology/releases/download/$NOMOS_VERSION/FOSSology-nomossa \
+    -O /opt/ort/bin/FOSSology-nomossa \
+    && chmod +x /opt/ort/bin/FOSSology-nomossa
+
 #------------------------------------------------------------------------
 # Container with all supported package managers.
 FROM minimal-tools AS all-tools

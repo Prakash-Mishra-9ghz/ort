@@ -14,6 +14,7 @@ on:
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false
   REGISTRY: ghcr.io
+  REPO_OWNER: prakash-mishra-9ghz
 
 jobs:
   disk_space:
@@ -45,7 +46,7 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
         with:
           images: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/ort
+            ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/ort
           tags: |
             type=pep440,pattern={{version}}
             type=raw,value=${{ env.ORT_VERSION }}
@@ -57,21 +58,20 @@ jobs:
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
-          push: true
+          push: false
           tags: ${{ steps.meta-ort.outputs.tags }}
           labels: ${{ steps.meta-ort.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository_owner }}/ort:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository_owner }}/ort:cache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/ort:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/ort:cache,mode=max
           build-args: ORT_VERSION=${{ env.ORT_VERSION }}
           sbom: true
       - name: Build 'ort' Docker Image
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        if: ${{ github.event_name == 'pull_request' || github.repository != 'prakash-mishra-9ghz/your-repo-name' }}
+        uses: docker/build-push-action@v6
         with:
           context: .
-          tags: ${{ steps.meta-ort.outputs.tags }}
-          labels: ${{ steps.meta-ort.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository_owner }}/ort:cache
+          tags: ort-dev:local
+          push: false
           build-args: ORT_VERSION=${{ env.ORT_VERSION }}
           sbom: true
       - name: Extract Metadata for 'ort-minimal' Docker Image
@@ -79,7 +79,7 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
         with:
           images: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/ort-minimal
+            ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/ort-minimal
           tags: |
             type=pep440,pattern={{version}}
             type=raw,value=${{ env.ORT_VERSION }}
@@ -96,8 +96,30 @@ jobs:
           tags: ${{ steps.meta-ort-minimal.outputs.tags }}
           labels: ${{ steps.meta-ort-minimal.outputs.labels }}
           target: minimal
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository_owner }}/ort:cache
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/ort:cache
           build-args: ORT_VERSION=${{ env.ORT_VERSION }}
           sbom: true
+
+      # Save image tarball for artifact
+      - name: Save Docker image as tarball
+        run: |
+          echo "Meta-ort tags: ${{ steps.meta-ort.outputs.tags }}"
+          TAG=$(echo "${{ steps.meta-ort.outputs.tags }}" | awk '{print $1}')
+          echo "Using tag: $TAG"
+          if [ -z "$TAG" ]; then
+            echo "No tag found, creating image locally for save..."
+            # Save the image you just built with a fixed name, e.g. ort-dev:local
+            docker save ort-dev:local -o ort-dev-image.tar || exit 1
+          else
+            docker pull $TAG || echo "Pull failed, image might not be pushed yet"
+            docker save $TAG -o ort-dev-image.tar
+          fi
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ort-dev-image
+          path: ort-dev-image.tar
+
       - name: Print Disk Space
         run: df -h
